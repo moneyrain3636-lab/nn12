@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4형식 & 5형식 실전 훈련소 (to부정사 통합 태그 적용)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+        }
+        
+        #set-selection { text-align: center; }
+        .set-btn {
+            background-color: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #1e40af;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .set-btn:hover { background-color: #e2e8f0; border-color: #cbd5e0; transform: translateY(-2px); }
+        .set-desc { font-size: 0.8em; color: #ef4444; font-weight: bold; background-color: #fee2e2; padding: 4px 10px; border-radius: 20px;}
+        
+        #quiz-screen, #result-screen { display: none; }
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .question-type {
+            font-size: 1.05em;
+            color: #ffffff;
+            background-color: #3b82f6;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+        
+        .timer-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .time-text {
+            font-size: 1.5em;
+            font-weight: 800;
+            color: #0f172a;
+            min-width: 50px;
+        }
+        .time-text.warning { color: #ea580c; }
+        .time-text.danger { color: #dc2626; animation: pulse 1s infinite; }
+        .timer-container {
+            flex-grow: 1;
+            height: 10px;
+            background-color: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .timer-bar {
+            height: 100%;
+            background-color: #10b981;
+            width: 100%;
+            transition: width 1s linear, background-color 0.3s;
+        }
+        .timer-bar.warning { background-color: #f59e0b; }
+        .timer-bar.danger { background-color: #ef4444; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .instruction-text {
+            font-size: 1.3em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #1e293b;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .sentence-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-end; 
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 25px 20px 15px 20px;
+            background-color: #f8fafc;
+            border-radius: 15px;
+            border: 2px dashed #cbd5e0;
+            min-height: 90px;
+        }
+        
+        .word-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .word-btn {
+            background-color: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        /* 선택 대기 중인 버튼 상태 (다중 선택용) */
+        .word-btn.selected {
+            background-color: #dbeafe;
+            border-color: #2563eb;
+            color: #1d4ed8;
+            transform: scale(1.05);
+            box-shadow: 0 6px 10px rgba(37, 99, 235, 0.2);
+        }
+
+        .word-btn:hover:not(:disabled) {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+        .word-btn.correct { background-color: #10b981 !important; color: white !important; border-color: #059669 !important; transform: scale(1); box-shadow:none; }
+        .word-btn.wrong { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; transform: scale(1); box-shadow:none; }
+        .word-btn:disabled { cursor: not-allowed; }
+
+        .word-tag {
+            font-size: 0.8em;
+            color: #94a3b8; 
+            font-weight: 700;
+            opacity: 0; 
+            transition: opacity 0.4s ease;
+            height: 1.2em; 
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .show-tags .word-tag { opacity: 1; }
+        
+        .feedback-box {
+            margin-top: 20px;
+            display: none;
+            animation: fadeIn 0.4s;
+        }
+        .feedback-title { font-size: 1.3em; font-weight: 800; margin-bottom: 15px; }
+        .explanation-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            font-size: 1em;
+            text-align: left;
+        }
+        .exp-translate { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e0; }
+        .exp-wrong { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .exp-correct { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .action-btn {
+            flex: 1;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background-color: #1d4ed8; transform: translateY(-2px); }
+        .action-btn.secondary { background-color: #64748b; }
+        .action-btn.secondary:hover { background-color: #475569; }
+        .action-btn.review { background-color: #ea580c; }
+        .action-btn.review:hover { background-color: #c2410c; }
+        .action-btn.danger { background-color: #ef4444; }
+        .action-btn.danger:hover { background-color: #dc2626; }
+        
+        #review-controls { display: none; flex-direction: column; gap: 10px; margin-top: 25px; }
+        #next-btn { display: none; width: 100%; margin-top: 20px; }
+
+        #quit-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 30px;
+            font-size: 1.05em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            transition: all 0.2s;
+            display: none; 
+            z-index: 1000;
+        }
+        #quit-btn:hover { background-color: #dc2626; transform: translateY(-3px); }
+
+        .charts-wrapper {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 25px 0;
+            gap: 20px;
+            height: 220px;
+        }
+        .chart-box { flex: 1; height: 100%; position: relative; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (max-width: 600px) {
+            #quit-btn { bottom: 20px; right: 20px; padding: 12px 20px; font-size: 0.95em; }
+            .charts-wrapper { flex-direction: column; height: 400px; }
+            .word-btn { padding: 10px 15px; font-size: 1.2em; }
+            .word-tag { font-size: 0.7em; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="quiz-container">
+    <div id="set-selection">
+        <h1 style="color: #1e40af; margin-bottom: 5px;">4형식 & 5형식 실전 훈련소</h1>
+        <p style="color: #64748b; margin-bottom: 30px; line-height: 1.5;">
+            동일한 문장이라도 <b>요구하는 성분</b>이 매번 바뀝니다!<br>
+            품사 힌트 없이 스스로 문장 구조를 분석해 보세요.<br>
+            (※ to부정사가 보어일 경우 <b>단어 2개</b>를 클릭해야 합니다.)
+        </p>
+        
+        <button class="set-btn" onclick="startQuiz()">
+            <span>🚀 랜덤 10제 훈련 시작</span>
+            <span class="set-desc">500제 다이나믹 출제</span>
+        </button>
+        
+        <div id="review-controls">
+            <button class="action-btn review" onclick="startMainReview()">
+                📝 누적 오답 노트 풀기 (<span id="wrong-count">0</span>문제)
+            </button>
+            <button class="action-btn danger" style="padding: 12px; font-size: 1em;" onclick="resetWrongAnswers()">
+                🗑️ 오답 기록 초기화
+            </button>
+        </div>
+    </div>
+
+    <div id="quiz-screen">
+        <div class="quiz-header">
+            <span class="question-type" id="q-type">유형</span>
+            <span id="q-progress" style="font-weight: bold; color: #475569;">1 / 10</span>
+        </div>
+        
+        <div class="timer-wrapper">
+            <div class="time-text" id="time-text">15초</div>
+            <div class="timer-container"><div class="timer-bar" id="timer-bar"></div></div>
+        </div>
+
+        <div class="instruction-text" id="q-instruction">질문 지시문</div>
+        
+        <div class="sentence-container" id="sentence-container"></div>
+
+        <div class="feedback-box" id="feedback"></div>
+        <button class="action-btn" id="next-btn" onclick="nextQuestion()">다음 문제로 ➔</button>
+    </div>
+
+    <div id="result-screen" style="text-align: center;">
+        <h2 style="font-size: 2.2em; color: #1e40af; margin-bottom: 10px;" id="result-title">훈련 완료!</h2>
+        <p id="final-score" style="font-size: 1.4em; font-weight: bold; margin-bottom: 10px;"></p>
+        
+        <div class="charts-wrapper">
+            <div class="chart-box">
+                <canvas id="donutChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+        <p id="result-msg" style="color: #64748b; margin-bottom: 30px; line-height: 1.5;"></p>
+        <div class="btn-group">
+            <button class="action-btn secondary" onclick="goToMain()">메인 메뉴로</button>
+            <button class="action-btn review" id="review-btn" onclick="startReview()" style="display:none;">📝 방금 틀린 문제 복습</button>
+        </div>
+    </div>
+</div>
+
+<button id="quit-btn" onclick="quitQuiz()">종료 🚪</button>
+
+<script>
+    const baseSentences = [
+        // 4형식 (SVOO)
+        { 
+            text: "My parents bought me a new smartphone .", translation: "부모님은 나에게 새 스마트폰을 사주셨다.", tags: ["소유격", "주어(명사)", "동사", "간접목적어(대명사)", "관사", "형용사", "직접목적어(명사)", ""],
+            tasks: [
+                { type: "간접목적어", target: [3], instruction: "다음 문장에서 <b>[간접목적어]</b>를 찾아 누르세요.", exp: "수여동사 뒤 '~에게'에 해당하는 'me'가 간접목적어입니다." },
+                { type: "직접목적어", target: [6], instruction: "다음 문장에서 <b>[직접목적어]</b>를 찾아 누르세요.", exp: "수여동사 뒤 '~을/를'에 해당하는 'smartphone'이 직접목적어입니다." },
+                { type: "동사", target: [2], instruction: "다음 문장에서 <b>[동사]</b>를 찾아 누르세요.", exp: "주어의 동작을 나타내는 'bought'가 4형식 수여동사입니다." }
+            ]
+        },
+        { 
+            text: "The kind man gave us some water .", translation: "그 친절한 남자는 우리에게 약간의 물을 주었다.", tags: ["관사", "형용사", "주어(명사)", "동사", "간접목적어(대명사)", "형용사", "직접목적어(명사)", ""],
+            tasks: [
+                { type: "간접목적어", target: [4], instruction: "다음 문장에서 <b>[간접목적어]</b>를 찾아 누르세요.", exp: "수여동사(gave) 뒤 '~에게' 해당하는 'us'가 간접목적어입니다." },
+                { type: "직접목적어", target: [6], instruction: "다음 문장에서 <b>[직접목적어]</b>를 찾아 누르세요.", exp: "수여동사 뒤 '~을/를' 해당하는 'water'가 직접목적어입니다." }
+            ]
+        },
+        { 
+            text: "She showed him the secret map .", translation: "그녀는 그에게 비밀 지도를 보여주었다.", tags: ["주어(대명사)", "동사", "간접목적어(대명사)", "관사", "형용사", "직접목적어(명사)", ""],
+            tasks: [
+                { type: "간접목적어", target: [2], instruction: "다음 문장에서 <b>[간접목적어]</b>를 찾아 누르세요.", exp: "showed(보여주었다)의 대상 'him'이 간접목적어입니다." },
+                { type: "직접목적어", target: [5], instruction: "다음 문장에서 <b>[직접목적어]</b>를 찾아 누르세요.", exp: "보여준 사물인 'map'이 직접목적어입니다." }
+            ]
+        },
+
+        // 5형식 (SVOC) - 명사 보어
+        { 
+            text: "They named their baby hero .", translation: "그들은 그들의 아기를 영웅이라고 이름 지었다.", tags: ["주어(대명사)", "동사", "소유격", "목적어(명사)", "목적격보어(명사)", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "목적어(baby)의 신분을 나타내는 'hero'가 명사 목적격보어입니다." },
+                { type: "목적어", target: [3], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "동사 named의 대상이 되는 'baby'가 목적어입니다." }
+            ]
+        },
+        { 
+            text: "People call the old man a walking dictionary .", translation: "사람들은 그 노인을 걸어 다니는 사전이라고 부른다.", tags: ["주어(명사)", "동사", "관사", "형용사", "목적어(명사)", "관사", "형용사", "목적격보어(명사)", ""],
+            tasks: [
+                { type: "목적격보어", target: [7], instruction: "다음 문장에서 <b>[목적격보어]</b>의 핵심 단어를 찾아 누르세요.", exp: "call의 목적어(man)를 지칭하는 명사 보어 'dictionary'입니다." },
+                { type: "동사", target: [1], instruction: "다음 문장에서 5형식 <b>[동사]</b>를 찾아 누르세요.", exp: "'~를 ~라고 부르다'라는 의미의 5형식 동사 'call'입니다." }
+            ]
+        },
+
+        // 5형식 (SVOC) - 형용사 보어
+        { 
+            text: "The success made him proud .", translation: "그 성공은 그를 자랑스럽게 만들었다.", tags: ["관사", "주어(명사)", "동사", "목적어(대명사)", "목적격보어(형용사)", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "목적어(him)의 상태를 설명하는 'proud'가 형용사 목적격보어입니다." },
+                { type: "목적어", target: [3], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "동사 made의 대상이 되는 'him'이 목적어입니다." }
+            ]
+        },
+        { 
+            text: "The heavy snow kept us warm .", translation: "폭설에도 우리는 따뜻하게 유지되었다.", tags: ["관사", "형용사", "주어(명사)", "동사", "목적어(대명사)", "목적격보어(형용사)", ""],
+            tasks: [
+                { type: "목적격보어", target: [5], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "keep + 목적어 + 형용사 구조에서 'warm'이 목적격보어입니다." },
+                { type: "목적어", target: [4], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "따뜻하게 유지된 대상인 'us'가 목적어입니다." }
+            ]
+        },
+
+        // 5형식 (SVOC) - to부정사 보어
+        { 
+            text: "I want you to finish the work .", translation: "나는 네가 그 일을 끝내기를 원한다.", tags: ["주어(대명사)", "동사", "목적어(대명사)", "목적격보어(to부정사)", "목적격보어(동사원형)", "관사", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [3, 4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 나타내는 <b><span style='color:#ef4444;'>2개의 단어</span></b>를 모두 누르세요.", exp: "want는 목적격보어로 to부정사를 취하므로 'to'와 'finish'가 정답입니다." },
+                { type: "목적어", target: [2], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "행동(finish)의 주체가 되는 목적어 'you'입니다." }
+            ]
+        },
+        { 
+            text: "The teacher allowed us to play outside .", translation: "선생님은 우리가 밖에서 노는 것을 허락하셨다.", tags: ["관사", "주어(명사)", "동사", "목적어(대명사)", "목적격보어(to부정사)", "목적격보어(동사원형)", "부사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4, 5], instruction: "다음 문장에서 <b>[목적격보어]</b>를 나타내는 <b><span style='color:#ef4444;'>2개의 단어</span></b>를 모두 누르세요.", exp: "allow는 목적격보어로 to부정사를 취하므로 'to'와 'play'가 정답입니다." },
+                { type: "동사", target: [2], instruction: "다음 문장에서 <b>[동사]</b>를 찾아 누르세요.", exp: "허락하다는 의미의 'allowed'가 동사입니다." }
+            ]
+        },
+        { 
+            text: "He advised me to read the book .", translation: "그는 나에게 그 책을 읽으라고 조언했다.", tags: ["주어(대명사)", "동사", "목적어(대명사)", "목적격보어(to부정사)", "목적격보어(동사원형)", "관사", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [3, 4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 나타내는 <b><span style='color:#ef4444;'>2개의 단어</span></b>를 모두 누르세요.", exp: "advise는 목적격보어로 to부정사를 취하므로 'to'와 'read'가 정답입니다." }
+            ]
+        },
+        { 
+            text: "My friend asked me to join the club .", translation: "내 친구는 나에게 동아리에 가입해달라고 부탁했다.", tags: ["소유격", "주어(명사)", "동사", "목적어(대명사)", "목적격보어(to부정사)", "목적격보어(동사원형)", "관사", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4, 5], instruction: "다음 문장에서 <b>[목적격보어]</b>를 나타내는 <b><span style='color:#ef4444;'>2개의 단어</span></b>를 모두 누르세요.", exp: "ask는 5형식에서 목적격보어로 to부정사를 취하므로 'to', 'join'이 정답입니다." }
+            ]
+        },
+
+        // 5형식 (SVOC) - 동사원형 보어 (사역/준사역)
+        { 
+            text: "My mother let me watch TV .", translation: "나의 어머니는 내가 TV 보는 것을 허락하셨다.", tags: ["소유격", "주어(명사)", "동사", "목적어(대명사)", "목적격보어(동사원형)", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "사역동사 let은 능동 관계일 때 목적격보어로 동사원형(watch)을 취합니다." },
+                { type: "동사", target: [2], instruction: "다음 문장에서 <b>[동사]</b>를 찾아 누르세요.", exp: "허락의 의미를 가진 사역동사 'let'입니다." }
+            ]
+        },
+        { 
+            text: "I had the mechanic repair my car .", translation: "나는 정비사에게 내 차를 수리하게 했다.", tags: ["주어(대명사)", "동사", "관사", "목적어(명사)", "목적격보어(동사원형)", "소유격", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "사역동사 have 능동태에서는 동사원형(repair)이 목적격보어로 옵니다." }
+            ]
+        },
+        { 
+            text: "The teacher helped the students solve the problem .", translation: "선생님은 학생들이 문제를 푸는 것을 도왔다.", tags: ["관사", "주어(명사)", "동사", "관사", "목적어(명사)", "목적격보어(동사원형)", "관사", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [5], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "준사역동사 help는 능동일 때 목적격보어로 동사원형(solve)을 취할 수 있습니다." }
+            ]
+        },
+        { 
+            text: "She made her son clean his room .", translation: "그녀는 아들에게 그의 방을 청소하게 시켰다.", tags: ["주어(대명사)", "동사", "소유격", "목적어(명사)", "목적격보어(동사원형)", "소유격", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "사역동사 make 능동태에서 목적격보어는 동사원형(clean)입니다." },
+                { type: "목적어", target: [3], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "청소를 하는 주체인 'son'이 목적어입니다." }
+            ]
+        },
+
+        // 5형식 (SVOC) - 현재분사(Ving) 보어
+        { 
+            text: "She saw a boy jumping over the fence .", translation: "그녀는 한 소년이 울타리를 넘어 뛰는 것을 보았다.", tags: ["주어(대명사)", "동사", "관사", "목적어(명사)", "목적격보어(Ving)", "전치사", "관사", "명사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "지각동사 see는 진행을 강조할 때 목적격보어로 현재분사(Ving)를 취합니다." },
+                { type: "동사", target: [1], instruction: "다음 문장에서 <b>[동사]</b>를 찾아 누르세요.", exp: "감각을 나타내는 지각동사 'saw'입니다." }
+            ]
+        },
+        { 
+            text: "We heard the dog barking loudly .", translation: "우리는 개가 크게 짖는 것을 들었다.", tags: ["주어(대명사)", "동사", "관사", "목적어(명사)", "목적격보어(Ving)", "부사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "지각동사 hear 뒤에 개가 짖고 있는 능동/진행 상태이므로 Ving(barking)가 옵니다." }
+            ]
+        },
+        { 
+            text: "He felt his heart beating fast .", translation: "그는 그의 심장이 빠르게 뛰는 것을 느꼈다.", tags: ["주어(대명사)", "동사", "소유격", "목적어(명사)", "목적격보어(Ving)", "부사", ""],
+            tasks: [
+                { type: "목적격보어", target: [4], instruction: "다음 문장에서 <b>[목적격보어]</b>를 찾아 누르세요.", exp: "지각동사 feel 뒤에 진행을 나타내는 현재분사(beating)가 옵니다." },
+                { type: "목적어", target: [3], instruction: "다음 문장에서 <b>[목적어]</b>를 찾아 누르세요.", exp: "뛰고 있는 주체인 'heart'가 목적어입니다." }
+            ]
+        }
+    ];
+
+    let flattenedQuestions = [];
+    baseSentences.forEach(sentence => {
+        sentence.tasks.forEach(task => {
+            flattenedQuestions.push({
+                text: sentence.text,
+                translation: sentence.translation,
+                tags: sentence.tags,
+                type: task.type,
+                target: task.target,
+                instruction: task.instruction,
+                exp: task.exp
+            });
+        });
+    });
+
+    let expandedPool = [];
+    while (expandedPool.length < 500) {
+        expandedPool = expandedPool.concat(flattenedQuestions);
+    }
+    expandedPool = expandedPool.slice(0, 500);
+
+    const QUESTIONS_PER_ROUND = 10; 
+
+    let currentQuestions = [];
+    let currentQIndex = 0;
+    let score = 0;
+    
+    let sessionWrongAnswers = []; 
+    let globalWrongAnswers = [];  
+    let selectedIndices = []; 
+
+    let timerInterval;
+    let timeLeft = 15;
+    const TIME_LIMIT = 15;
+    let isReviewMode = false;
+
+    let donutChartInst = null;
+    let barChartInst = null;
+
+    const setSelectionEl = document.getElementById('set-selection');
+    const quizScreenEl = document.getElementById('quiz-screen');
+    const resultScreenEl = document.getElementById('result-screen');
+    const qTypeEl = document.getElementById('q-type');
+    const qProgressEl = document.getElementById('q-progress');
+    const qInstructionEl = document.getElementById('q-instruction');
+    const sentenceContainer = document.getElementById('sentence-container');
+    const feedbackEl = document.getElementById('feedback');
+    const nextBtn = document.getElementById('next-btn');
+    const timerBar = document.getElementById('timer-bar');
+    const timeTextEl = document.getElementById('time-text');
+    const quitBtnEl = document.getElementById('quit-btn');
+
+    function getSignificantWords(text) {
+        const stopWords = ['the', 'a', 'an', 'is', 'are', 'am', 'was', 'were', 'to', 'in', 'at', 'on', 'of', 'for', 'with', 'and', 'but', 'or', 'so', 'it', 'this', 'that', 'they', 'we', 'he', 'she', 'i', 'you', 'my', 'your', 'his', 'her', 'their', 'our', 'me', 'him', 'them', 'us', 'be', 'been', 'being', 'do', 'did', 'does', 'has', 'have', 'had'];
+        let cleanText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        let words = cleanText.split(/\s+/);
+        return words.filter(w => w.length > 0 && !stopWords.includes(w));
+    }
+
+    function shuffleArray(array) {
+        let shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    function generateUniqueSet(pool, size) {
+        let shuffled = shuffleArray(pool);
+        let selected = [];
+        let usedWords = new Set();
+        let usedQuestions = new Set();
+
+        for (let q of shuffled) {
+            if (usedQuestions.has(q.text)) continue; 
+            let sigWords = getSignificantWords(q.text);
+            let hasOverlap = sigWords.some(w => usedWords.has(w)); 
+
+            if (!hasOverlap) {
+                selected.push(q);
+                usedQuestions.add(q.text);
+                sigWords.forEach(w => usedWords.add(w)); 
+            }
+            if (selected.length === size) break;
+        }
+
+        if (selected.length < size) {
+            for (let q of shuffled) {
+                if (!usedQuestions.has(q.text)) {
+                    selected.push(q);
+                    usedQuestions.add(q.text);
+                    if (selected.length === size) break;
+                }
+            }
+        }
+        return selected;
+    }
+
+    function updateMainReviewBtn() {
+        const reviewControls = document.getElementById('review-controls');
+        const countSpan = document.getElementById('wrong-count');
+        if (globalWrongAnswers.length > 0) {
+            reviewControls.style.display = 'flex';
+            countSpan.innerText = globalWrongAnswers.length;
+        } else {
+            reviewControls.style.display = 'none';
+        }
+    }
+
+    function resetWrongAnswers() {
+        if (confirm("누적된 오답 기록을 모두 지우시겠습니까?")) {
+            globalWrongAnswers = [];
+            updateMainReviewBtn();
+            alert("오답 기록이 완전히 초기화되었습니다!");
+        }
+    }
+
+    function startQuiz() {
+        currentQuestions = generateUniqueSet(expandedPool, QUESTIONS_PER_ROUND);
+        isReviewMode = false;
+        resetQuizState();
+        setSelectionEl.style.display = 'none';
+        quizScreenEl.style.display = 'block';
+        quitBtnEl.style.display = 'block'; 
+        loadQuestion();
+    }
+
+    function startMainReview() {
+        if (globalWrongAnswers.length === 0) return;
+        currentQuestions = shuffleArray([...globalWrongAnswers]);
+        isReviewMode = true;
+        resetQuizState();
+        setSelectionEl.style.display = 'none';
+        quizScreenEl.style.display = 'block';
+        quitBtnEl.style.display = 'block'; 
+        loadQuestion();
+    }
+
+    function startReview() {
+        currentQuestions = [...sessionWrongAnswers];
+        isReviewMode = true;
+        resetQuizState();
+        resultScreenEl.style.display = 'none';
+        quizScreenEl.style.display = 'block';
+        quitBtnEl.style.display = 'block'; 
+        loadQuestion();
+    }
+
+    function quitQuiz() {
+        if (confirm("정말 훈련을 종료하시겠습니까? 진행 상황은 저장되지 않습니다.")) {
+            clearInterval(timerInterval);
+            goToMain();
+        }
+    }
+
+    function resetQuizState() {
+        currentQIndex = 0;
+        score = 0;
+        sessionWrongAnswers = [];
+    }
+
+    function loadQuestion() {
+        clearInterval(timerInterval);
+        feedbackEl.style.display = 'none';
+        nextBtn.style.display = 'none';
+        sentenceContainer.innerHTML = ''; 
+        sentenceContainer.classList.remove('show-tags'); 
+        selectedIndices = []; 
+        
+        const currentQ = currentQuestions[currentQIndex];
+        qTypeEl.textContent = isReviewMode ? `[오답복습] ${currentQ.type} 찾기` : `${currentQ.type} 찾기`;
+        qProgressEl.textContent = `${currentQIndex + 1} / ${currentQuestions.length}`;
+        qInstructionEl.innerHTML = currentQ.instruction;
+
+        const words = currentQ.text.split(" ");
+        let skipUntil = -1;
+
+        words.forEach((word, index) => {
+            if (word.trim() === "") return;
+            if (index <= skipUntil) return;
+
+            // ★ to부정사가 목적격보어일 경우, to와 동사원형을 그룹으로 묶고 태그를 하나로 결합
+            if (currentQ.tags[index] === "목적격보어(to부정사)" && currentQ.tags[index + 1] === "목적격보어(동사원형)") {
+                const groupWrapper = document.createElement('div');
+                groupWrapper.className = 'word-wrapper';
+
+                const btnContainer = document.createElement('div');
+                btnContainer.style.display = 'flex';
+                btnContainer.style.gap = '12px';
+
+                // 'to' 버튼
+                const btn1 = document.createElement('button');
+                btn1.className = 'word-btn';
+                btn1.innerText = words[index];
+                btn1.onclick = () => toggleWord(index, btn1, currentQ, words);
+                btnContainer.appendChild(btn1);
+
+                // '동사원형' 버튼
+                const btn2 = document.createElement('button');
+                btn2.className = 'word-btn';
+                btn2.innerText = words[index + 1];
+                btn2.onclick = () => toggleWord(index + 1, btn2, currentQ, words);
+                btnContainer.appendChild(btn2);
+
+                // 단일 텍스트 태그
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'word-tag';
+                tagSpan.innerText = "목적격보어(to 부정사)"; 
+
+                groupWrapper.appendChild(btnContainer);
+                groupWrapper.appendChild(tagSpan);
+                sentenceContainer.appendChild(groupWrapper);
+
+                skipUntil = index + 1; // 다음 단어(동사원형)는 처리했으므로 건너뜀
+                return;
+            }
+
+            // 일반 단어 처리
+            const wrapper = document.createElement('div');
+            wrapper.className = 'word-wrapper';
+
+            const btn = document.createElement('button');
+            btn.className = 'word-btn';
+            
+            if (word === '.') {
+                btn.innerText = word;
+                btn.disabled = true;
+                btn.style.border = 'none';
+                btn.style.background = 'transparent';
+                btn.style.boxShadow = 'none';
+                btn.style.cursor = 'default';
+                btn.style.padding = '12px 0px';
+            } else {
+                btn.innerText = word;
+                btn.onclick = () => toggleWord(index, btn, currentQ, words);
+            }
+
+            const tagSpan = document.createElement('span');
+            tagSpan.className = 'word-tag';
+            tagSpan.innerText = currentQ.tags[index] || "";
+
+            wrapper.appendChild(btn);
+            wrapper.appendChild(tagSpan);
+            sentenceContainer.appendChild(wrapper);
+        });
+
+        startTimer();
+    }
+
+    function startTimer() {
+        timeLeft = TIME_LIMIT;
+        updateTimerUI();
+        timerBar.classList.remove('warning', 'danger');
+        timeTextEl.classList.remove('warning', 'danger');
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerUI();
+
+            if (timeLeft <= 5 && timeLeft > 2) {
+                timerBar.classList.add('warning');
+                timeTextEl.classList.add('warning');
+            } else if (timeLeft <= 2) {
+                timerBar.classList.remove('warning');
+                timeTextEl.classList.remove('warning');
+                timerBar.classList.add('danger');
+                timeTextEl.classList.add('danger');
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timeOut();
+            }
+        }, 1000);
+    }
+
+    function updateTimerUI() {
+        timeTextEl.innerText = `${timeLeft}초`;
+        timerBar.style.width = `${(timeLeft / TIME_LIMIT) * 100}%`;
+    }
+
+    function disableAllWords() {
+        const allBtns = document.querySelectorAll('.word-btn');
+        allBtns.forEach(btn => btn.disabled = true);
+        return allBtns;
+    }
+
+    function toggleWord(index, btn, currentQ, wordsArray) {
+        if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            selectedIndices = selectedIndices.filter(i => i !== index);
+        } else {
+            btn.classList.add('selected');
+            selectedIndices.push(index);
+        }
+
+        if (selectedIndices.length === currentQ.target.length) {
+            checkAnswer(currentQ, wordsArray);
+        }
+    }
+
+    function timeOut() {
+        const currentQ = currentQuestions[currentQIndex];
+        const allBtns = disableAllWords();
+        
+        sentenceContainer.classList.add('show-tags');
+
+        currentQ.target.forEach(idx => {
+            if(allBtns[idx]) allBtns[idx].classList.add('correct');
+        });
+
+        let targetWordsStr = currentQ.target.map(idx => allBtns[idx]?.innerText || "").join(" + ");
+
+        sessionWrongAnswers.push(currentQ);
+        if (!globalWrongAnswers.some(q => q.text === currentQ.text && q.instruction === currentQ.instruction)) {
+            globalWrongAnswers.push(currentQ);
+        }
+
+        feedbackEl.innerHTML = `
+            <div class="feedback-title" style="color: #b91c1c;">⏰ 시간 초과!</div>
+            <div class="explanation-box exp-translate">
+                <strong>[문장 해석]</strong><br> ${currentQ.translation}
+            </div>
+            <div class="explanation-box exp-correct">
+                <strong>[정답: ${targetWordsStr}]</strong><br> ${currentQ.exp}
+            </div>
+        `;
+        feedbackEl.style.display = 'block';
+        nextBtn.style.display = 'block';
+    }
+
+    function checkAnswer(currentQ, wordsArray) {
+        clearInterval(timerInterval);
+        const allBtns = disableAllWords();
+        sentenceContainer.classList.add('show-tags');
+
+        let sortedSelected = selectedIndices.slice().sort().join(',');
+        let sortedTarget = currentQ.target.slice().sort().join(',');
+        let isCorrect = (sortedSelected === sortedTarget);
+
+        let targetWordsStr = currentQ.target.map(idx => wordsArray[idx]).join(" + ");
+
+        if (isCorrect) {
+            selectedIndices.forEach(idx => {
+                if(allBtns[idx]) {
+                    allBtns[idx].classList.remove('selected');
+                    allBtns[idx].classList.add('correct');
+                }
+            });
+            score++;
+
+            globalWrongAnswers = globalWrongAnswers.filter(q => !(q.text === currentQ.text && q.instruction === currentQ.instruction));
+
+            feedbackEl.innerHTML = `
+                <div class="feedback-title" style="color: #15803d;">✅ 정답입니다!</div>
+                <div class="explanation-box exp-translate">
+                    <strong>[문장 해석]</strong><br> ${currentQ.translation}
+                </div>
+                <div class="explanation-box exp-correct">
+                    <strong>[해설]</strong><br> ${currentQ.exp}
+                </div>
+            `;
+        } else {
+            selectedIndices.forEach(idx => {
+                if(allBtns[idx]) {
+                    allBtns[idx].classList.remove('selected');
+                    allBtns[idx].classList.add('wrong');
+                }
+            });
+            currentQ.target.forEach(idx => {
+                if(allBtns[idx]) allBtns[idx].classList.add('correct');
+            });
+            
+            sessionWrongAnswers.push(currentQ);
+            if (!globalWrongAnswers.some(q => q.text === currentQ.text && q.instruction === currentQ.instruction)) {
+                globalWrongAnswers.push(currentQ);
+            }
+
+            feedbackEl.innerHTML = `
+                <div class="feedback-title" style="color: #b91c1c;">❌ 오답입니다.</div>
+                <div class="explanation-box exp-translate">
+                    <strong>[문장 해석]</strong><br> ${currentQ.translation}
+                </div>
+                <div class="explanation-box exp-correct">
+                    <strong>[진짜 정답: ${targetWordsStr}]</strong><br> ${currentQ.exp}
+                </div>
+            `;
+        }
+        feedbackEl.style.display = 'block';
+        nextBtn.style.display = 'block';
+    }
+
+    function nextQuestion() {
+        currentQIndex++;
+        if (currentQIndex < currentQuestions.length) loadQuestion();
+        else showResult();
+    }
+
+    function renderCharts(correctCount, wrongCount) {
+        const donutCtx = document.getElementById('donutChart').getContext('2d');
+        const barCtx = document.getElementById('barChart').getContext('2d');
+
+        if (donutChartInst) donutChartInst.destroy();
+        if (barChartInst) barChartInst.destroy();
+
+        donutChartInst = new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['정답', '오답'],
+                datasets: [{
+                    data: [correctCount, wrongCount],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: '정답 비율 (도넛 차트)' }
+                }
+            }
+        });
+
+        barChartInst = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: ['결과 통계'],
+                datasets: [
+                    {
+                        label: '정답 수',
+                        data: [correctCount],
+                        backgroundColor: '#10b981',
+                        borderRadius: 5
+                    },
+                    {
+                        label: '오답 수',
+                        data: [wrongCount],
+                        backgroundColor: '#ef4444',
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: '정답 수치 (막대 차트)' }
+                }
+            }
+        });
+    }
+
+    function showResult() {
+        quizScreenEl.style.display = 'none';
+        quitBtnEl.style.display = 'none'; 
+        resultScreenEl.style.display = 'block';
+        
+        document.getElementById('final-score').innerText = `총 ${currentQuestions.length}문제 중 ${score}문제 정답!`;
+        const msgEl = document.getElementById('result-msg');
+        const reviewBtn = document.getElementById('review-btn');
+        
+        renderCharts(score, sessionWrongAnswers.length);
+
+        if (score === currentQuestions.length) {
+            document.getElementById('result-title').innerText = "🎉 완벽합니다!";
+            msgEl.innerText = "가장 헷갈리기 쉬운 4, 5형식 구조를 완벽하게 마스터하셨네요! 훌륭합니다.";
+            reviewBtn.style.display = 'none';
+        } else {
+            document.getElementById('result-title').innerText = "훈련 완료";
+            msgEl.innerText = `${sessionWrongAnswers.length}문제를 헷갈리셨네요. 5형식 목적격보어의 다양한 형태를 오답 노트를 통해 꽉 잡아보세요.`;
+            reviewBtn.style.display = 'block';
+        }
+    }
+
+    function goToMain() {
+        resultScreenEl.style.display = 'none';
+        quizScreenEl.style.display = 'none';
+        quitBtnEl.style.display = 'none'; 
+        setSelectionEl.style.display = 'block';
+        updateMainReviewBtn(); 
+    }
+
+    window.onload = updateMainReviewBtn;
+</script>
+
+</body>
+</html>
